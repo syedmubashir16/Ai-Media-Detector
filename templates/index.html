@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Media Detector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #111118;
+    --bg3: #16161f;
+    --surface: #1c1c27;
+    --surface2: #22222f;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #f0f0f8;
+    --text2: #9898b8;
+    --text3: #5a5a7a;
+    --accent: #6c63ff;
+    --accent2: #8b5cf6;
+    --green: #22d3a0;
+    --red: #ff5e7a;
+    --amber: #fbbf24;
+    --font: 'Space Grotesk', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; }
+
+  /* Layout */
+  .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 0;
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .header-inner { display: flex; align-items: center; justify-content: space-between; }
+  .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo-icon {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .logo-text { font-size: 17px; font-weight: 600; color: var(--text); letter-spacing: -0.3px; }
+  .logo-text span { color: var(--accent); }
+  .header-badge {
+    font-family: var(--mono); font-size: 11px; color: var(--text3);
+    border: 1px solid var(--border2); border-radius: 20px; padding: 4px 10px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Hero */
+  .hero { padding: 64px 0 48px; text-align: center; }
+  .hero h1 {
+    font-size: clamp(32px, 6vw, 52px); font-weight: 700; line-height: 1.1;
+    letter-spacing: -1px; color: var(--text);
+    margin-bottom: 18px;
+  }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { font-size: 17px; color: var(--text2); max-width: 520px; margin: 0 auto 32px; }
+  .tag-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 40px; }
+  .tag {
+    font-size: 12px; font-family: var(--mono); color: var(--text3);
+    border: 1px solid var(--border2); border-radius: 20px; padding: 5px 12px;
+    background: var(--surface);
+  }
+  .tag.g { color: var(--green); border-color: rgba(34,211,160,0.25); }
+
+  /* Upload Zone */
+  .upload-zone {
+    border: 1.5px dashed var(--border2);
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    margin-bottom: 32px;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(108,99,255,0.06);
+  }
+  .upload-zone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-icon {
+    width: 56px; height: 56px; margin: 0 auto 16px;
+    border-radius: 16px; background: var(--surface2);
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
+    border: 1px solid var(--border2);
+  }
+  .upload-title { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+  .upload-sub { font-size: 14px; color: var(--text3); }
+  .upload-formats {
+    margin-top: 20px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+  }
+  .format-badge {
+    font-family: var(--mono); font-size: 11px; padding: 4px 9px;
+    border-radius: 6px; background: var(--bg3); color: var(--text3);
+    border: 1px solid var(--border);
+  }
+
+  /* Preview */
+  #preview-area { display: none; margin-bottom: 24px; }
+  .preview-card {
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: var(--radius); padding: 16px 20px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .preview-thumb {
+    width: 64px; height: 64px; border-radius: 8px;
+    object-fit: cover; background: var(--bg3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; flex-shrink: 0; border: 1px solid var(--border);
+  }
+  .preview-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 7px; }
+  .preview-info { flex: 1; min-width: 0; }
+  .preview-name { font-size: 15px; font-weight: 500; color: var(--text); truncate: ellipsis; white-space: nowrap; overflow: hidden; }
+  .preview-size { font-size: 13px; color: var(--text3); margin-top: 3px; font-family: var(--mono); }
+  .preview-clear {
+    background: none; border: 1px solid var(--border2); color: var(--text3);
+    border-radius: 8px; padding: 7px 14px; font-size: 13px; cursor: pointer;
+    transition: all 0.15s; font-family: var(--font);
+  }
+  .preview-clear:hover { background: var(--surface2); color: var(--text); }
+
+  /* Analyse Button */
+  .btn-analyse {
+    width: 100%; padding: 15px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: var(--radius); color: #fff;
+    font-size: 16px; font-weight: 600; font-family: var(--font);
+    cursor: pointer; transition: all 0.2s;
+    display: none; letter-spacing: 0.2px;
+  }
+  .btn-analyse:hover { transform: translateY(-1px); opacity: 0.92; }
+  .btn-analyse:active { transform: translateY(0); }
+  .btn-analyse:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Loading */
+  #loading { display: none; text-align: center; padding: 48px 0; }
+  .spinner {
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 3px solid var(--border2);
+    border-top-color: var(--accent);
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto 18px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading p { color: var(--text2); font-size: 14px; }
+
+  /* Results */
+  #result-area { display: none; }
+  .result-card {
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: var(--radius); overflow: hidden; margin-bottom: 20px;
+  }
+  .result-header {
+    padding: 24px 28px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .verdict-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .verdict-label { font-size: 13px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+  .verdict-value {
+    font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
+  }
+  .verdict-value.real { color: var(--green); }
+  .verdict-value.fake { color: var(--red); }
+  .confidence-block { text-align: right; }
+  .conf-number { font-size: 40px; font-weight: 700; font-family: var(--mono); letter-spacing: -1px; }
+  .conf-label { font-size: 13px; color: var(--text3); margin-top: 2px; }
+
+  /* Probability Bar */
+  .prob-section { padding: 20px 28px; border-bottom: 1px solid var(--border); }
+  .prob-label-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px; }
+  .prob-bar-track {
+    height: 10px; background: var(--bg3); border-radius: 10px; overflow: hidden;
+    position: relative;
+  }
+  .prob-bar-real {
+    height: 100%; border-radius: 10px 0 0 10px;
+    background: var(--green); transition: width 0.8s cubic-bezier(.4,0,.2,1);
+  }
+  .prob-bar-fake {
+    position: absolute; right: 0; top: 0; height: 100%;
+    border-radius: 0 10px 10px 0;
+    background: var(--red); transition: width 0.8s cubic-bezier(.4,0,.2,1);
+  }
+
+  /* Stats Row */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    padding: 20px 28px; gap: 1px; background: var(--border);
+  }
+  .stat-cell { background: var(--surface); padding: 14px 20px; }
+  .stat-cell:first-child { border-radius: var(--radius-sm) 0 0 0; }
+  .stat-cell:last-child { border-radius: 0 var(--radius-sm) 0 0; }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 5px; }
+  .stat-value { font-size: 15px; font-weight: 600; color: var(--text); font-family: var(--mono); }
+
+  /* Features Panel */
+  .features-section { padding: 20px 28px; }
+  .section-title { font-size: 13px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; }
+  .feature-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .feature-name { font-family: var(--mono); font-size: 12px; color: var(--text2); min-width: 160px; flex-shrink: 0; }
+  .feature-bar-track { flex: 1; height: 6px; background: var(--bg3); border-radius: 6px; overflow: hidden; }
+  .feature-bar-fill { height: 100%; border-radius: 6px; background: var(--accent); }
+  .feature-imp { font-family: var(--mono); font-size: 12px; color: var(--text3); min-width: 44px; text-align: right; }
+
+  /* Demo Banner */
+  .demo-banner {
+    background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.2);
+    border-radius: var(--radius-sm); padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: var(--amber); margin-bottom: 16px;
+  }
+
+  /* Info Bar */
+  .info-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 13px; color: var(--text3); margin-bottom: 32px;
+  }
+  .info-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+
+  /* Analyse Again */
+  .btn-again {
+    width: 100%; padding: 13px; background: none;
+    border: 1px solid var(--border2); border-radius: var(--radius);
+    color: var(--text2); font-size: 15px; font-weight: 500; font-family: var(--font);
+    cursor: pointer; transition: all 0.15s; margin-top: 8px;
+  }
+  .btn-again:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+
+  /* How it works */
+  .how-section { padding: 48px 0; border-top: 1px solid var(--border); margin-top: 48px; }
+  .how-section h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.3px; }
+  .how-section .sub { font-size: 15px; color: var(--text2); margin-bottom: 32px; }
+  .how-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+  .how-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px;
+  }
+  .how-num {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: rgba(108,99,255,0.15); color: var(--accent);
+    font-size: 13px; font-weight: 600; font-family: var(--mono);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 12px;
+  }
+  .how-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .how-desc { font-size: 13px; color: var(--text3); line-height: 1.5; }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border); padding: 28px 0;
+    text-align: center; font-size: 13px; color: var(--text3);
+  }
+  footer strong { color: var(--text2); }
+
+  @media (max-width: 600px) {
+    .hero { padding: 40px 0 32px; }
+    .stats-row { grid-template-columns: 1fr; }
+    .stat-cell:first-child, .stat-cell:last-child { border-radius: 0; }
+    .verdict-row { flex-direction: column; }
+    .confidence-block { text-align: left; }
+    .feature-name { min-width: 120px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <div class="logo-icon">🔍</div>
+        <span class="logo-text">AI<span>Detect</span></span>
+      </a>
+      <div class="header-badge" id="status-badge">Loading...</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container">
+    <section class="hero">
+      <h1>Is it <em>real</em> or<br>AI-generated?</h1>
+      <p>Upload any image or video. Our ML model analyses frequency artifacts, texture patterns, and noise signatures to detect synthetic media.</p>
+      <div class="tag-row">
+        <span class="tag g">✓ Images: JPG, PNG, WebP</span>
+        <span class="tag g">✓ Videos: MP4, AVI, MOV</span>
+        <span class="tag">Random Forest · SVM · GBM</span>
+        <span class="tag">scikit-learn</span>
+      </div>
+    </section>
+
+    <div id="info-bar-area">
+      <div class="info-bar">
+        <span class="info-dot"></span>
+        <span id="model-status-text">Checking model status...</span>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div id="upload-section">
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="file-input" accept="image/*,video/*,.mp4,.avi,.mov,.mkv,.webm">
+        <div class="upload-icon">📁</div>
+        <div class="upload-title">Drop your file here</div>
+        <div class="upload-sub">or click to browse</div>
+        <div class="upload-formats">
+          <span class="format-badge">JPG</span>
+          <span class="format-badge">PNG</span>
+          <span class="format-badge">WEBP</span>
+          <span class="format-badge">MP4</span>
+          <span class="format-badge">AVI</span>
+          <span class="format-badge">MOV</span>
+        </div>
+      </div>
+
+      <div id="preview-area">
+        <div class="preview-card">
+          <div class="preview-thumb" id="preview-thumb">?</div>
+          <div class="preview-info">
+            <div class="preview-name" id="preview-name">filename.jpg</div>
+            <div class="preview-size" id="preview-size">0 KB</div>
+          </div>
+          <button class="preview-clear" onclick="clearFile()">✕ Remove</button>
+        </div>
+      </div>
+
+      <button class="btn-analyse" id="btn-analyse" onclick="analyseFile()">
+        Analyse Media
+      </button>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading">
+      <div class="spinner"></div>
+      <p id="loading-text">Extracting features...</p>
+    </div>
+
+    <!-- Results -->
+    <div id="result-area">
+      <div id="demo-banner" class="demo-banner" style="display:none">
+        ⚠ Running in demo mode — train a model first for real predictions. See README for instructions.
+      </div>
+
+      <div class="result-card">
+        <div class="result-header">
+          <div class="verdict-row">
+            <div>
+              <div class="verdict-label">Verdict</div>
+              <div class="verdict-value" id="verdict-text">Real</div>
+            </div>
+            <div class="confidence-block">
+              <div class="conf-number" id="conf-number">94.2%</div>
+              <div class="conf-label">Confidence</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="prob-section">
+          <div class="prob-label-row">
+            <span style="color:var(--green);font-size:13px;font-weight:500">Real</span>
+            <span style="color:var(--text3);font-size:13px" id="prob-label-center"></span>
+            <span style="color:var(--red);font-size:13px;font-weight:500">AI-Generated</span>
+          </div>
+          <div class="prob-bar-track">
+            <div class="prob-bar-real" id="prob-bar-real" style="width:50%"></div>
+            <div class="prob-bar-fake" id="prob-bar-fake" style="width:50%"></div>
+          </div>
+          <div class="prob-label-row" style="margin-top:8px;margin-bottom:0">
+            <span style="font-family:var(--mono);font-size:12px;color:var(--text3)" id="real-pct">50%</span>
+            <span style="font-family:var(--mono);font-size:12px;color:var(--text3)" id="fake-pct">50%</span>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-cell">
+            <div class="stat-label">Media Type</div>
+            <div class="stat-value" id="stat-type">Image</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Model</div>
+            <div class="stat-value" id="stat-model">RF</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Inference</div>
+            <div class="stat-value" id="stat-time">0.3s</div>
+          </div>
+        </div>
+
+        <div class="features-section" id="features-section">
+          <div class="section-title">Top Contributing Features</div>
+          <div id="features-list"></div>
+        </div>
+      </div>
+
+      <button class="btn-again" onclick="reset()">← Analyse Another File</button>
+    </div>
+
+    <!-- How It Works -->
+    <section class="how-section">
+      <h2>How it works</h2>
+      <div class="sub">Classical ML pipeline with engineered features — no GPU required.</div>
+      <div class="how-grid">
+        <div class="how-card">
+          <div class="how-num">01</div>
+          <div class="how-title">Feature Extraction</div>
+          <div class="how-desc">DCT coefficients, LBP texture histograms, color stats, and noise residuals are extracted from each frame.</div>
+        </div>
+        <div class="how-card">
+          <div class="how-num">02</div>
+          <div class="how-title">Video Aggregation</div>
+          <div class="how-desc">For videos, frames are sampled at 1 FPS and features are aggregated with mean + std pooling and temporal diff stats.</div>
+        </div>
+        <div class="how-card">
+          <div class="how-num">03</div>
+          <div class="how-title">Classification</div>
+          <div class="how-desc">A Random Forest classifier trained on CIFAKE & FaceForensics++ scores the 96–204 dimensional feature vector.</div>
+        </div>
+        <div class="how-card">
+          <div class="how-num">04</div>
+          <div class="how-title">Explainability</div>
+          <div class="how-desc">Feature importance from the ensemble model shows which signals drove the prediction.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="container">
+    Built with <strong>Python · scikit-learn · Flask</strong> · Final Year Project 2024/25
+  </div>
+</footer>
+
+<script>
+let selectedFile = null;
+
+async function checkStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    const badge = document.getElementById('status-badge');
+    const text = document.getElementById('model-status-text');
+    if (d.models_loaded.length > 0) {
+      badge.textContent = 'Models loaded: ' + d.models_loaded.join(', ');
+      badge.style.color = 'var(--green)';
+      badge.style.borderColor = 'rgba(34,211,160,0.3)';
+      text.textContent = 'Models ready: ' + d.models_loaded.join(', ') + ' detection active.';
+    } else {
+      badge.textContent = 'Demo mode';
+      badge.style.color = 'var(--amber)';
+      badge.style.borderColor = 'rgba(251,191,36,0.3)';
+      text.textContent = 'Demo mode active — no trained model found. Run train_model.py with your dataset first.';
+    }
+  } catch(e) {
+    document.getElementById('status-badge').textContent = 'Offline';
+    document.getElementById('model-status-text').textContent = 'Cannot connect to server. Make sure app.py is running.';
+  }
+}
+
+const zone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('file-input');
+
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+  selectedFile = file;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const isVideo = ['mp4','avi','mov','mkv','webm'].includes(ext);
+
+  document.getElementById('preview-name').textContent = file.name;
+  document.getElementById('preview-size').textContent =
+    (file.size / 1024 < 1024 ? (file.size/1024).toFixed(1) + ' KB' : (file.size/1024/1024).toFixed(1) + ' MB')
+    + ' · ' + ext.toUpperCase();
+
+  const thumb = document.getElementById('preview-thumb');
+  if (!isVideo && file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      thumb.innerHTML = '<img src="' + e.target.result + '" alt="preview">';
+    };
+    reader.readAsDataURL(file);
+  } else {
+    thumb.innerHTML = isVideo ? '🎬' : '🖼';
+    thumb.style.fontSize = '26px';
+    thumb.style.lineHeight = '64px';
+    thumb.style.textAlign = 'center';
+  }
+
+  document.getElementById('preview-area').style.display = 'block';
+  document.getElementById('btn-analyse').style.display = 'block';
+  document.getElementById('result-area').style.display = 'none';
+}
+
+function clearFile() {
+  selectedFile = null;
+  fileInput.value = '';
+  document.getElementById('preview-area').style.display = 'none';
+  document.getElementById('btn-analyse').style.display = 'none';
+}
+
+const loadingMessages = [
+  'Extracting DCT coefficients...',
+  'Analysing texture patterns...',
+  'Computing noise residuals...',
+  'Running classifier...',
+  'Generating confidence scores...',
+];
+let loadingInterval;
+
+async function analyseFile() {
+  if (!selectedFile) return;
+
+  document.getElementById('upload-section').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('result-area').style.display = 'none';
+
+  let i = 0;
+  const lt = document.getElementById('loading-text');
+  lt.textContent = loadingMessages[0];
+  loadingInterval = setInterval(() => {
+    i = (i + 1) % loadingMessages.length;
+    lt.textContent = loadingMessages[i];
+  }, 1200);
+
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+
+  try {
+    const r = await fetch('/api/predict', { method: 'POST', body: formData });
+    const d = await r.json();
+    clearInterval(loadingInterval);
+    document.getElementById('loading').style.display = 'none';
+
+    if (!d.success) {
+      alert('Error: ' + (d.error || 'Unknown error'));
+      reset(); return;
+    }
+    showResults(d);
+  } catch(e) {
+    clearInterval(loadingInterval);
+    document.getElementById('loading').style.display = 'none';
+    alert('Connection error. Is the Flask server running?');
+    reset();
+  }
+}
+
+function showResults(d) {
+  const isAI = d.prediction === 'AI-Generated';
+
+  document.getElementById('verdict-text').textContent = d.prediction;
+  document.getElementById('verdict-text').className = 'verdict-value ' + (isAI ? 'fake' : 'real');
+  document.getElementById('conf-number').textContent = d.confidence + '%';
+  document.getElementById('conf-number').style.color = isAI ? 'var(--red)' : 'var(--green)';
+
+  document.getElementById('prob-bar-real').style.width = d.real_probability + '%';
+  document.getElementById('prob-bar-fake').style.width = d.ai_probability + '%';
+  document.getElementById('real-pct').textContent = d.real_probability + '%';
+  document.getElementById('fake-pct').textContent = d.ai_probability + '%';
+
+  document.getElementById('stat-type').textContent =
+    d.media_type.charAt(0).toUpperCase() + d.media_type.slice(1);
+  document.getElementById('stat-model').textContent = (d.model || 'Demo').replace('Classifier','').trim();
+  document.getElementById('stat-time').textContent = d.inference_time_s + 's';
+
+  // Features
+  const fl = document.getElementById('features-list');
+  const fs = document.getElementById('features-section');
+  fl.innerHTML = '';
+  const tf = d.top_features || {};
+  const keys = Object.keys(tf);
+  if (keys.length > 0) {
+    const maxImp = Math.max(...keys.map(k => tf[k].importance));
+    keys.forEach(k => {
+      const pct = Math.round((tf[k].importance / maxImp) * 100);
+      const row = document.createElement('div');
+      row.className = 'feature-row';
+      row.innerHTML = `
+        <div class="feature-name">${k.substring(0,22)}</div>
+        <div class="feature-bar-track"><div class="feature-bar-fill" style="width:${pct}%"></div></div>
+        <div class="feature-imp">${(tf[k].importance*100).toFixed(1)}%</div>
+      `;
+      fl.appendChild(row);
+    });
+    fs.style.display = 'block';
+  } else {
+    fs.style.display = 'none';
+  }
+
+  document.getElementById('demo-banner').style.display = d.demo_mode ? 'flex' : 'none';
+  document.getElementById('result-area').style.display = 'block';
+}
+
+function reset() {
+  selectedFile = null;
+  fileInput.value = '';
+  document.getElementById('preview-area').style.display = 'none';
+  document.getElementById('btn-analyse').style.display = 'none';
+  document.getElementById('result-area').style.display = 'none';
+  document.getElementById('upload-section').style.display = 'block';
+}
+
+checkStatus();
+</script>
+</body>
+</html>

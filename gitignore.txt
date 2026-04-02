@@ -1,0 +1,13 @@
+# Ignore the heavy AI models
+models/
+
+# Ignore Python caches and temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore local environment files
+.env
+venv/
+env/
